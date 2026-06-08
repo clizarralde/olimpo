@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#16a34a" />
+  <title>Olimpo · Mi rutina</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header__inner">
+      <div class="brand">
+        <span class="brand__mark">🏋️</span>
+        <div>
+          <h1 class="brand__title">Olimpo</h1>
+          <p class="brand__sub" id="headerSub">Seguimiento de rutina</p>
+        </div>
+      </div>
+      <div class="header-cal" id="headerCal" hidden>
+        <span class="header-cal__num" id="headerCalNum">0</span>
+        <span class="header-cal__unit">kcal</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="view" class="view"><!-- vistas renderizadas por JS --></main>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab is-active" data-view="hoy">
+      <span class="tab__icon">📅</span><span class="tab__label">Hoy</span>
+    </button>
+    <button class="tab" data-view="rutina">
+      <span class="tab__icon">🗓️</span><span class="tab__label">Rutina</span>
+    </button>
+    <button class="tab" data-view="catalogo">
+      <span class="tab__icon">📚</span><span class="tab__label">Catálogo</span>
+    </button>
+    <button class="tab" data-view="historial">
+      <span class="tab__icon">📈</span><span class="tab__label">Historial</span>
+    </button>
+    <button class="tab" data-view="perfil">
+      <span class="tab__icon">⚙️</span><span class="tab__label">Perfil</span>
+    </button>
+  </nav>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="modalRoot"></div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

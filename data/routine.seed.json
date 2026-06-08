@@ -1,0 +1,142 @@
+{
+  "id": "olimpo",
+  "name": "Rutina Olimpo",
+  "days": {
+    "lunes": {
+      "label": "Pecho + Espalda",
+      "exercises": [
+        {
+          "exerciseId": "press-inclinado",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "press-declinado",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "aperturas-superiores",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "polea-pecho",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "remo-una-mano",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "remo-en-punta",
+          "sets": 4,
+          "reps": 10
+        }
+      ]
+    },
+    "martes": {
+      "label": "Descanso",
+      "exercises": []
+    },
+    "miercoles": {
+      "label": "Piernas",
+      "exercises": [
+        {
+          "exerciseId": "prensa",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "hack",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "extension-cuadriceps",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "curl-femoral",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "gemelo",
+          "sets": 4,
+          "reps": 10
+        }
+      ]
+    },
+    "jueves": {
+      "label": "Descanso",
+      "exercises": []
+    },
+    "viernes": {
+      "label": "Hombros + Brazos",
+      "exercises": [
+        {
+          "exerciseId": "press-militar",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "peck-deck-hombro",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "elevaciones-laterales",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "remo-al-cuello",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "triceps-polea",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "fondo-paralelo",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "extension-trasnuca",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "curl-martillo",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "flexion-polea",
+          "sets": 4,
+          "reps": 10
+        },
+        {
+          "exerciseId": "curl-invertido",
+          "sets": 4,
+          "reps": 10
+        }
+      ]
+    },
+    "sabado": {
+      "label": "Descanso",
+      "exercises": []
+    },
+    "domingo": {
+      "label": "Descanso",
+      "exercises": []
+    }
+  }
+}
