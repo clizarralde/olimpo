@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "exercises": [
     {
       "id": "press-banca",
@@ -638,7 +638,7 @@
       "defaultReps": 1,
       "secondsPerRep": 0,
       "durationMin": 10,
-      "image": null
+      "image": "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/Jogging_Treadmill/0.jpg"
     },
     {
       "id": "abs-banco",
@@ -649,7 +649,7 @@
       "defaultSets": 3,
       "defaultReps": 20,
       "secondsPerRep": 2,
-      "image": null
+      "image": "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/Crunches/0.jpg"
     },
     {
       "id": "abs-inclinado",
@@ -660,7 +660,7 @@
       "defaultSets": 3,
       "defaultReps": 15,
       "secondsPerRep": 2,
-      "image": null
+      "image": "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/Decline_Crunch/0.jpg"
     },
     {
       "id": "abs-rodillas",
@@ -671,7 +671,7 @@
       "defaultSets": 3,
       "defaultReps": 15,
       "secondsPerRep": 2,
-      "image": null
+      "image": "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/Knee_Hip_Raise_On_Parallel_Bars/0.jpg"
     }
   ]
 }

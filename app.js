@@ -11,7 +11,7 @@ const LS = {
   active: 'olimpo:active',
 };
 
-const SEED_VERSION = 2; // subir para inyectar ejercicios/cambios nuevos a usuarios existentes
+const SEED_VERSION = 3; // subir para inyectar ejercicios/cambios nuevos a usuarios existentes
 
 const DAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const DAY_SHORT = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb', domingo: 'Dom' };
@@ -94,8 +94,12 @@ async function init() {
   if (!state.catalog) {
     state.catalog = catSeed.exercises;
   } else if ((state.profile.seedVersion || 1) < SEED_VERSION) {
-    const have = new Set(state.catalog.map((e) => e.id));
-    for (const e of catSeed.exercises) if (!have.has(e.id)) state.catalog.push(e);
+    const byIdLocal = new Map(state.catalog.map((e) => [e.id, e]));
+    for (const e of catSeed.exercises) {
+      const local = byIdLocal.get(e.id);
+      if (!local) state.catalog.push(e);
+      else if (!local.image && e.image) local.image = e.image; // completar fotos faltantes
+    }
   }
 
   // ----- Rutinas (migración desde rutina única) -----
