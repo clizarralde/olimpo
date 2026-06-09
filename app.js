@@ -60,6 +60,8 @@ async function fetchSeed(file) {
 
 async function init() {
   state.profile = read(LS.profile, null) || { name: 'Carlos', weightKg: 80, restSecondsDefault: 60, secondsPerRepDefault: 3 };
+  if (!state.profile.imageStyle) state.profile.imageStyle = 'foto';
+  if (!state.profile.imageGender) state.profile.imageGender = 'm';
   state.catalog = read(LS.catalog, null);
   state.routine = read(LS.routine, null);
   state.sessions = read(LS.sessions, []);
@@ -88,6 +90,20 @@ const round = (n) => Math.round(n);
 
 function imgTag(src, cls) {
   return `<img class="${cls}" src="${esc(src || PLACEHOLDER)}" loading="lazy" onerror="this.onerror=null;this.src='${PLACEHOLDER}'" alt="">`;
+}
+
+// Imagen de un ejercicio según estilo/género elegido, con fallback: estilo → foto → placeholder
+function exImageSrc(ex) {
+  const st = (state.profile && state.profile.imageStyle) || 'foto';
+  if (st === 'foto' || !ex) return (ex && ex.image) ? ex.image : PLACEHOLDER;
+  const g = (state.profile && state.profile.imageGender) || 'm';
+  return `images/${st}/${g}/${ex.id}.png`;
+}
+function exImg(ex, cls) {
+  const styled = exImageSrc(ex);
+  const photo = (ex && ex.image) ? ex.image : PLACEHOLDER;
+  return `<img class="${cls}" src="${esc(styled)}" loading="lazy" data-photo="${esc(photo)}"
+    onerror="if(!this.dataset.fb){this.dataset.fb=1;this.src=this.dataset.photo;}else{this.onerror=null;this.src='${PLACEHOLDER}';}" alt="">`;
 }
 
 function toast(msg) {
@@ -244,7 +260,7 @@ function exerciseSlide(item, i, n) {
           <span class="ecard__group">${esc(ex ? (GROUPS[ex.muscleGroup] || ex.muscleGroup) : '')}</span>
           <span class="ecard__idx">${i + 1} / ${n}</span>
         </div>
-        ${imgTag(ex && ex.image, 'ecard__img')}
+        ${exImg(ex, 'ecard__img')}
         <h2 class="ecard__name">${esc(ex ? ex.name : item.exerciseId)}</h2>
         <div class="ecard__target"><b>${item.sets}</b> series × <b>${item.reps}</b> reps</div>
         <div class="setdots">${setdots}</div>
@@ -487,7 +503,7 @@ function openExercisePicker(d, root) {
     if (!list.length) return '';
     return `<div class="section-title">${esc(GROUPS[g])}</div>` +
       list.map((e) => `<div class="picker-item" data-pick="${esc(e.id)}">
-        ${imgTag(e.image, '')}<span class="picker-item__name">${esc(e.name)}</span>
+        ${exImg(e, '')}<span class="picker-item__name">${esc(e.name)}</span>
         <span class="tag">${e.defaultSets}×${e.defaultReps}</span></div>`).join('');
   }).join('');
   openModal(`<h3 class="modal__title">Agregar ejercicio · ${esc(state.routine.days[d].label)}</h3>${groups}`);
@@ -506,7 +522,7 @@ function renderCatalogo(root) {
     const list = state.catalog.filter((e) => e.muscleGroup === g);
     const items = list.map((e) => `
       <div class="cat-item">
-        ${imgTag(e.image, 'cat-item__thumb')}
+        ${exImg(e, 'cat-item__thumb')}
         <div class="cat-item__body">
           <div class="cat-item__name">${esc(e.name)}</div>
           <div class="cat-item__meta">${e.defaultSets}×${e.defaultReps} · MET ${e.met}${e.subGroup ? ' · ' + esc(SUBGROUPS[e.subGroup] || e.subGroup) : ''}</div>
@@ -639,6 +655,15 @@ function renderPerfil(root) {
       </div>
       <button class="btn btn--primary" id="pSave">Guardar</button>
     </div>
+    <div class="section-title">Imágenes de ejercicios</div>
+    <div class="card" style="padding:16px">
+      <div class="field"><label>Estilo</label>
+        <select class="input" id="pStyle">
+          <option value="foto" ${p.imageStyle === 'foto' ? 'selected' : ''}>Fotos (reales)</option>
+          <option value="cartoon" ${p.imageStyle === 'cartoon' ? 'selected' : ''}>Cartoon</option>
+        </select></div>
+      <p style="font-size:12px;color:var(--text-soft);margin:-6px 0 0">Si falta una ilustración, usa la foto del ejercicio.</p>
+    </div>
     <div class="section-title">Datos</div>
     <div class="card" style="padding:16px">
       <p style="font-size:13px;color:var(--text-soft);margin-top:0">Tus datos se guardan sólo en este dispositivo (offline).</p>
@@ -656,6 +681,7 @@ function renderPerfil(root) {
     p.secondsPerRepDefault = Math.max(1, parseInt($('#pSpr').value) || 3);
     save(); toast('Perfil guardado ✔');
   };
+  $('#pStyle', root).onchange = (e) => { p.imageStyle = e.target.value; save(); toast('Estilo: ' + (p.imageStyle === 'cartoon' ? 'Cartoon' : 'Fotos')); };
   $('#btnExport', root).onclick = () => {
     const data = { profile: state.profile, catalog: state.catalog, routine: state.routine, sessions: state.sessions };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

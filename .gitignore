@@ -2,3 +2,8 @@ rutina.jpg
 .DS_Store
 _*.html
 *.log
+.env
+.env.*
+*.key
+openai.key
+images/cartoon/_grid_*.png
