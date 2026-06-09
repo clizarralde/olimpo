@@ -1,5 +1,5 @@
 // Service Worker · Olimpo
-const CACHE = 'olimpo-v7';
+const CACHE = 'olimpo-v8';
 const CORE = [
   './',
   './index.html',

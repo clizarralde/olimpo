@@ -483,8 +483,19 @@ function showSummaryModal(session, t) {
       <div class="card stat"><div class="stat__num">${session.durationMin}<small> min</small></div><div class="stat__label">Duración</div></div>
     </div>
     <p style="color:var(--text-soft);font-size:14px;text-align:center;margin:6px 0 4px">${esc(GROUPS_label(session))}</p>
-    <button class="btn btn--primary" data-close style="margin-top:8px">Listo</button>
+    ${isIOS() ? `<button class="btn btn--ghost" id="btnHealth" style="margin-top:8px">🍎 Agregar a Apple Salud</button>` : ''}
+    <button class="btn btn--primary" data-close style="margin-top:10px">Listo</button>
   `, () => setView('hoy'));
+  const hb = document.querySelector('#btnHealth');
+  if (hb) hb.onclick = () => { window.location.href = appleHealthURL(session); };
+}
+function isIOS() {
+  return /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+// Abre el Atajo "Olimpo Salud" pasándole las kcal quemadas como entrada
+function appleHealthURL(session) {
+  const name = encodeURIComponent('Olimpo Salud');
+  return `shortcuts://run-shortcut?name=${name}&input=text&text=${encodeURIComponent(session.caloriesBurned)}`;
 }
 function GROUPS_label(session) { return `${esc(session.label)} · ${new Date(session.date + 'T00:00').getDate()} ${MONTHS[new Date(session.date + 'T00:00').getMonth()]}`; }
 
