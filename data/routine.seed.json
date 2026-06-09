@@ -6,6 +6,11 @@
       "label": "Pecho + Espalda",
       "exercises": [
         {
+          "exerciseId": "entrada-calor",
+          "sets": 1,
+          "reps": 1
+        },
+        {
           "exerciseId": "press-inclinado",
           "sets": 4,
           "reps": 10
@@ -34,6 +39,11 @@
           "exerciseId": "remo-en-punta",
           "sets": 4,
           "reps": 10
+        },
+        {
+          "exerciseId": "abs-banco",
+          "sets": 3,
+          "reps": 15
         }
       ]
     },
@@ -44,6 +54,11 @@
     "miercoles": {
       "label": "Piernas",
       "exercises": [
+        {
+          "exerciseId": "entrada-calor",
+          "sets": 1,
+          "reps": 1
+        },
         {
           "exerciseId": "prensa",
           "sets": 4,
@@ -68,6 +83,11 @@
           "exerciseId": "gemelo",
           "sets": 4,
           "reps": 10
+        },
+        {
+          "exerciseId": "abs-inclinado",
+          "sets": 3,
+          "reps": 15
         }
       ]
     },
@@ -78,6 +98,11 @@
     "viernes": {
       "label": "Hombros + Brazos",
       "exercises": [
+        {
+          "exerciseId": "entrada-calor",
+          "sets": 1,
+          "reps": 1
+        },
         {
           "exerciseId": "press-militar",
           "sets": 4,
@@ -127,6 +152,11 @@
           "exerciseId": "curl-invertido",
           "sets": 4,
           "reps": 10
+        },
+        {
+          "exerciseId": "abs-rodillas",
+          "sets": 3,
+          "reps": 15
         }
       ]
     },

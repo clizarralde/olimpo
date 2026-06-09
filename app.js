@@ -4,21 +4,27 @@
 const LS = {
   profile: 'olimpo:profile',
   catalog: 'olimpo:catalog',
-  routine: 'olimpo:routine',
+  routine: 'olimpo:routine',          // legacy (rutina única) — sólo para migración
+  routines: 'olimpo:routines',
+  activeRoutine: 'olimpo:activeRoutine',
   sessions: 'olimpo:sessions',
   active: 'olimpo:active',
 };
+
+const SEED_VERSION = 2; // subir para inyectar ejercicios/cambios nuevos a usuarios existentes
 
 const DAYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const DAY_SHORT = { lunes: 'Lun', martes: 'Mar', miercoles: 'Mié', jueves: 'Jue', viernes: 'Vie', sabado: 'Sáb', domingo: 'Dom' };
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const GROUPS = {
+  cardio: 'Cardio',
   pectorales: 'Pectorales',
   dorsales: 'Espalda',
   hombros: 'Hombros',
   triceps: 'Tríceps',
   biceps: 'Bíceps',
   piernas: 'Piernas',
+  abdominales: 'Abdominales',
 };
 const GROUP_ORDER = Object.keys(GROUPS);
 const SUBGROUPS = {
@@ -35,11 +41,27 @@ const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 const state = {
   profile: null,
   catalog: [],       // [Exercise]
-  routine: null,     // {id,name,days}
+  routines: [],      // [{id,name,days}]
+  activeRoutineId: null,
   sessions: [],      // [Session]
   active: null,      // {date, dayKey, progress:{id:{setsDone,completed}}}
   view: 'hoy',
 };
+
+// Rutina activa (objeto vivo dentro de state.routines)
+function activeRoutine() {
+  return state.routines.find((r) => r.id === state.activeRoutineId) || state.routines[0];
+}
+function genRoutineId() {
+  let n = state.routines.length + 1, id;
+  do { id = 'rutina-' + n++; } while (state.routines.some((r) => r.id === id));
+  return id;
+}
+function blankDays() {
+  const d = {};
+  for (const k of DAYS) d[k] = { label: 'Descanso', exercises: [] };
+  return d;
+}
 
 const read = (k, fb) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fb; } catch { return fb; } };
 const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
@@ -47,7 +69,8 @@ const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 function save() {
   write(LS.profile, state.profile);
   write(LS.catalog, state.catalog);
-  write(LS.routine, state.routine);
+  write(LS.routines, state.routines);
+  write(LS.activeRoutine, state.activeRoutineId);
   write(LS.sessions, state.sessions);
   write(LS.active, state.active);
 }
@@ -63,21 +86,53 @@ async function init() {
   if (!state.profile.imageStyle) state.profile.imageStyle = 'foto';
   if (!state.profile.imageGender) state.profile.imageGender = 'm';
   state.catalog = read(LS.catalog, null);
-  state.routine = read(LS.routine, null);
   state.sessions = read(LS.sessions, []);
   state.active = read(LS.active, null);
 
+  // ----- Catálogo (con merge de ejercicios nuevos del seed) -----
+  const catSeed = await fetchSeed('data/catalog.seed.json');
   if (!state.catalog) {
-    const seed = await fetchSeed('data/catalog.seed.json');
-    state.catalog = seed.exercises;
+    state.catalog = catSeed.exercises;
+  } else if ((state.profile.seedVersion || 1) < SEED_VERSION) {
+    const have = new Set(state.catalog.map((e) => e.id));
+    for (const e of catSeed.exercises) if (!have.has(e.id)) state.catalog.push(e);
   }
-  if (!state.routine) {
-    state.routine = await fetchSeed('data/routine.seed.json');
-  }
-  save();
 
+  // ----- Rutinas (migración desde rutina única) -----
+  state.routines = read(LS.routines, null);
+  if (!state.routines) {
+    const legacy = read(LS.routine, null);
+    state.routines = legacy ? [legacy] : [await fetchSeed('data/routine.seed.json')];
+  }
+  state.activeRoutineId = read(LS.activeRoutine, null) || state.routines[0].id;
+  if (!state.routines.find((r) => r.id === state.activeRoutineId)) state.activeRoutineId = state.routines[0].id;
+
+  // ----- Migración v2: calentamiento + abdominales en rutinas existentes -----
+  if ((state.profile.seedVersion || 1) < SEED_VERSION) {
+    state.routines.forEach(migrateRoutineV2);
+    state.profile.seedVersion = SEED_VERSION;
+  }
+
+  save();
   bindTabs();
   setView('hoy');
+}
+
+// Inserta entrada en calor al inicio y un abdominal al final de cada día de entrenamiento
+function migrateRoutineV2(r) {
+  const absByDay = { lunes: 'abs-banco', miercoles: 'abs-inclinado', viernes: 'abs-rodillas' };
+  for (const d of DAYS) {
+    const day = r.days[d];
+    if (!day || !day.exercises.length) continue;
+    if (!day.exercises.some((i) => i.exerciseId === 'entrada-calor')) {
+      day.exercises.unshift({ exerciseId: 'entrada-calor', sets: 1, reps: 1 });
+    }
+    const hasAbs = day.exercises.some((i) => { const ex = byId(i.exerciseId); return ex && ex.muscleGroup === 'abdominales'; });
+    if (!hasAbs) {
+      const absId = absByDay[d] || 'abs-banco';
+      if (byId(absId)) day.exercises.push({ exerciseId: absId, sets: 3, reps: 15 });
+    }
+  }
 }
 
 // ---------- Helpers ----------
@@ -119,13 +174,14 @@ function secondsPerSet(ex, reps) {
   const rest = state.profile.restSecondsDefault ?? 60;
   return reps * spr + rest;
 }
+function exerciseSeconds(ex, setsDone, reps) {
+  if (!ex || setsDone <= 0) return 0;
+  if (ex.durationMin) return ex.durationMin * 60;            // ejercicio por tiempo (cardio)
+  return setsDone * secondsPerSet(ex, reps);
+}
 function exerciseCalories(ex, setsDone, reps) {
   if (!ex || setsDone <= 0) return 0;
-  const secs = setsDone * secondsPerSet(ex, reps);
-  return ex.met * state.profile.weightKg * (secs / 3600);
-}
-function exerciseSeconds(ex, setsDone, reps) {
-  return ex && setsDone > 0 ? setsDone * secondsPerSet(ex, reps) : 0;
+  return ex.met * state.profile.weightKg * (exerciseSeconds(ex, setsDone, reps) / 3600);
 }
 
 // ---------- Active session (Hoy) ----------
@@ -142,7 +198,7 @@ function ensureActive(dayKey) {
 
 function activeTotals() {
   const a = state.active;
-  const day = state.routine.days[a.dayKey];
+  const day = activeRoutine().days[a.dayKey];
   let cal = 0, secs = 0, doneSets = 0, totalSets = 0, doneEx = 0;
   for (const item of day.exercises) {
     const ex = byId(item.exerciseId);
@@ -184,25 +240,26 @@ function updateHeader() {
 
 // ---------- HOY ----------
 function renderHoy(root) {
+  const r = activeRoutine();
   // Sólo los días con ejercicios planificados (los de descanso quedan ocultos)
-  const trainingDays = DAYS.filter((d) => state.routine.days[d].exercises.length > 0);
+  const trainingDays = DAYS.filter((d) => r.days[d].exercises.length > 0);
 
   // Día por defecto: hoy si tiene ejercicios; si no, el primer día planificado
   let sel;
-  if (state.active && state.active.date === todayISO() && state.routine.days[state.active.dayKey] && state.routine.days[state.active.dayKey].exercises.length) {
+  if (state.active && state.active.date === todayISO() && r.days[state.active.dayKey] && r.days[state.active.dayKey].exercises.length) {
     sel = state.active.dayKey;
   } else {
     const wd = weekdayKey();
-    sel = state.routine.days[wd].exercises.length ? wd : (trainingDays[0] || wd);
+    sel = r.days[wd].exercises.length ? wd : (trainingDays[0] || wd);
   }
   ensureActive(sel);
   const dayKey = state.active.dayKey;
-  const day = state.routine.days[dayKey];
+  const day = r.days[dayKey];
 
   const chips = trainingDays.map((d) => `
     <button class="daychip ${d === dayKey ? 'is-active' : ''}" data-day="${d}">
       <span class="daychip__day">${DAY_SHORT[d]}</span>
-      <span class="daychip__lbl">${esc(state.routine.days[d].label)}</span>
+      <span class="daychip__lbl">${esc(r.days[d].label)}</span>
     </button>`).join('');
 
   if (!day.exercises.length) {
@@ -252,7 +309,19 @@ function exerciseSlide(item, i, n) {
   const p = state.active.progress[item.exerciseId] || { setsDone: 0 };
   const done = completedItem(item);
   const cal = round(exerciseCalories(ex, p.setsDone, item.reps));
-  const setdots = Array.from({ length: item.sets }, (_, s) => `<span class="sdot ${s < p.setsDone ? 'is-on' : ''}"></span>`).join('');
+  const isTime = ex && ex.durationMin;
+  const target = isTime
+    ? `⏱️ <b>${ex.durationMin} min</b>`
+    : `<b>${item.sets}</b> series × <b>${item.reps}</b> reps`;
+  const setdots = isTime ? '' : Array.from({ length: item.sets }, (_, s) => `<span class="sdot ${s < p.setsDone ? 'is-on' : ''}"></span>`).join('');
+  const control = isTime
+    ? `<button class="btn ${done ? 'btn--ghost' : 'btn--primary'} ecard__cta" data-act="toggle">${done ? '↺ Marcar pendiente' : '✓ Marcar hecho'}</button>`
+    : `<div class="setdots">${setdots}</div>
+       <div class="ecard__stepper">
+         <button class="stepbtn" data-act="minus">−</button>
+         <div class="ecard__count"><span class="ecard__countval">${p.setsDone}</span><small>/${item.sets} series</small></div>
+         <button class="stepbtn" data-act="plus">+</button>
+       </div>`;
   return `
     <section class="pslide" data-slide="${i}" data-ex="${esc(item.exerciseId)}">
       <div class="ecard ${done ? 'is-done' : ''}">
@@ -262,13 +331,8 @@ function exerciseSlide(item, i, n) {
         </div>
         ${exImg(ex, 'ecard__img')}
         <h2 class="ecard__name">${esc(ex ? ex.name : item.exerciseId)}</h2>
-        <div class="ecard__target"><b>${item.sets}</b> series × <b>${item.reps}</b> reps</div>
-        <div class="setdots">${setdots}</div>
-        <div class="ecard__stepper">
-          <button class="stepbtn" data-act="minus">−</button>
-          <div class="ecard__count"><span class="ecard__countval">${p.setsDone}</span><small>/${item.sets} series</small></div>
-          <button class="stepbtn" data-act="plus">+</button>
-        </div>
+        <div class="ecard__target">${target}</div>
+        ${control}
         <div class="ecard__cal">🔥 <b>${cal}</b> kcal</div>
         <button class="btn btn--primary ecard__cta" data-cta>${done ? 'Siguiente ›' : '✓ Completar'}</button>
       </div>
@@ -320,25 +384,34 @@ function bindPlayer(root, day) {
 
   root.querySelectorAll('.pdot').forEach((d) => d.onclick = () => goTo(parseInt(d.dataset.dot)));
 
-  root.querySelectorAll('.pslide[data-ex]').forEach((sl) => {
+  const afterChange = (idx) => { rerenderSlide(idx); updateDots(root, day); updateHeaderCal(); refreshFinish(root); };
+  function rerenderSlide(idx) {
+    const sl = root.querySelector(`.pslide[data-slide="${idx}"]`);
+    if (!sl) return;
+    const tmp = document.createElement('div');
+    tmp.innerHTML = exerciseSlide(day.exercises[idx], idx, n).trim();
+    sl.replaceWith(tmp.firstChild);
+    wireSlide(root.querySelector(`.pslide[data-slide="${idx}"]`));
+  }
+  function wireSlide(sl) {
     const id = sl.dataset.ex;
     const idx = parseInt(sl.dataset.slide);
     const item = day.exercises[idx];
     const p = state.active.progress[id] || (state.active.progress[id] = { setsDone: 0, completed: false });
     sl.querySelectorAll('[data-act]').forEach((b) => b.onclick = () => {
-      if (b.dataset.act === 'plus') p.setsDone = Math.min(item.sets, p.setsDone + 1);
-      else p.setsDone = Math.max(0, p.setsDone - 1);
+      const a = b.dataset.act;
+      if (a === 'plus') p.setsDone = Math.min(item.sets, p.setsDone + 1);
+      else if (a === 'minus') p.setsDone = Math.max(0, p.setsDone - 1);
+      else if (a === 'toggle') p.setsDone = completedItem(item) ? 0 : item.sets;
       p.completed = p.setsDone >= item.sets;
-      save(); updateSlide(root, day, idx); updateDots(root, day); updateHeaderCal(); refreshFinish(root);
+      save(); afterChange(idx);
     });
     sl.querySelector('[data-cta]').onclick = () => {
-      if (!completedItem(item)) {
-        p.setsDone = item.sets; p.completed = true;
-        save(); updateSlide(root, day, idx); updateDots(root, day); updateHeaderCal(); refreshFinish(root);
-      }
+      if (!completedItem(item)) { p.setsDone = item.sets; p.completed = true; save(); afterChange(idx); }
       goTo(idx + 1);
     };
-  });
+  }
+  root.querySelectorAll('.pslide[data-ex]').forEach(wireSlide);
 
   const fin = root.querySelector('#btnFinish');
   if (fin) fin.onclick = finishDay;
@@ -346,20 +419,6 @@ function bindPlayer(root, day) {
   if (back) back.onclick = () => goTo(n - 1);
 
   _playerResize = () => { vp.scrollLeft = state.active.cursor * W(); };
-}
-
-function updateSlide(root, day, idx) {
-  const sl = root.querySelector(`.pslide[data-slide="${idx}"]`);
-  if (!sl) return;
-  const item = day.exercises[idx];
-  const ex = byId(item.exerciseId);
-  const p = state.active.progress[item.exerciseId] || { setsDone: 0 };
-  const done = completedItem(item);
-  sl.querySelector('.ecard').classList.toggle('is-done', done);
-  sl.querySelector('.ecard__countval').textContent = p.setsDone;
-  sl.querySelector('.ecard__cal').innerHTML = `🔥 <b>${round(exerciseCalories(ex, p.setsDone, item.reps))}</b> kcal`;
-  sl.querySelector('.ecard__cta').textContent = done ? 'Siguiente ›' : '✓ Completar';
-  sl.querySelector('.setdots').innerHTML = Array.from({ length: item.sets }, (_, s) => `<span class="sdot ${s < p.setsDone ? 'is-on' : ''}"></span>`).join('');
 }
 
 function updateDots(root, day) {
@@ -388,7 +447,8 @@ function updateHeaderCal() {
 
 function finishDay() {
   const a = state.active;
-  const day = state.routine.days[a.dayKey];
+  const r = activeRoutine();
+  const day = r.days[a.dayKey];
   const t = activeTotals();
   if (t.doneSets === 0) { toast('Marcá al menos una serie 💪'); return; }
 
@@ -398,7 +458,7 @@ function finishDay() {
   });
 
   const session = {
-    date: a.date, dayKey: a.dayKey, routineId: state.routine.id, label: day.label,
+    date: a.date, dayKey: a.dayKey, routineId: r.id, label: day.label,
     weightKg: state.profile.weightKg, entries,
     caloriesBurned: round(t.cal), durationMin: round(t.min),
   };
@@ -425,17 +485,51 @@ function showSummaryModal(session, t) {
 function GROUPS_label(session) { return `${esc(session.label)} · ${new Date(session.date + 'T00:00').getDate()} ${MONTHS[new Date(session.date + 'T00:00').getMonth()]}`; }
 
 // ---------- RUTINA ----------
+function switchRoutine(id) {
+  if (!state.routines.some((x) => x.id === id)) return;
+  state.activeRoutineId = id;
+  state.active = null; // sesión fresca para la nueva rutina
+  save();
+}
+
 function renderRutina(root) {
-  const r = state.routine;
+  const r = activeRoutine();
+  const opts = state.routines.map((x) => `<option value="${esc(x.id)}" ${x.id === r.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('');
   root.innerHTML = `
-    <div class="field"><label>Nombre de la rutina</label>
-      <input class="input" id="rName" value="${esc(r.name)}"></div>
+    <div class="card" style="padding:16px">
+      <div class="field"><label>Rutina activa</label>
+        <select class="input" id="rPick">${opts}</select></div>
+      <div class="field"><label>Nombre</label>
+        <input class="input" id="rName" value="${esc(r.name)}"></div>
+      <div class="btn-row">
+        <button class="btn btn--ghost btn--sm" id="rNew">＋ Nueva</button>
+        <button class="btn btn--ghost btn--sm" id="rDup">⧉ Duplicar</button>
+        <button class="btn btn--danger btn--sm" id="rDel" ${state.routines.length <= 1 ? 'disabled' : ''}>🗑️ Eliminar</button>
+      </div>
+    </div>
+    <div class="section-title">Días</div>
     ${DAYS.map((d) => routineDayCard(d)).join('')}
     <div class="btn-row">
       <button class="btn btn--ghost" id="btnResetRoutine">↺ Restablecer a rutina Olimpo</button>
     </div>
   `;
-  $('#rName', root).onchange = (e) => { r.name = e.target.value.trim() || 'Mi rutina'; save(); };
+  $('#rPick', root).onchange = (e) => { switchRoutine(e.target.value); renderRutina(root); };
+  $('#rName', root).onchange = (e) => { r.name = e.target.value.trim() || 'Mi rutina'; save(); renderRutina(root); };
+  $('#rNew', root).onclick = () => {
+    const nr = { id: genRoutineId(), name: 'Nueva rutina', days: blankDays() };
+    state.routines.push(nr); switchRoutine(nr.id); renderRutina(root); toast('Rutina nueva creada');
+  };
+  $('#rDup', root).onclick = () => {
+    const copy = JSON.parse(JSON.stringify(r)); copy.id = genRoutineId(); copy.name = r.name + ' (copia)';
+    state.routines.push(copy); switchRoutine(copy.id); renderRutina(root); toast('Rutina duplicada');
+  };
+  $('#rDel', root).onclick = () => {
+    if (state.routines.length <= 1) return;
+    if (!confirm(`¿Eliminar la rutina "${r.name}"? (no afecta tu historial)`)) return;
+    state.routines = state.routines.filter((x) => x.id !== r.id);
+    state.activeRoutineId = state.routines[0].id; state.active = null;
+    save(); renderRutina(root); toast('Rutina eliminada');
+  };
   root.querySelectorAll('[data-addex]').forEach((b) => b.onclick = () => openExercisePicker(b.dataset.addex, root));
   root.querySelectorAll('[data-rmline]').forEach((b) => b.onclick = () => {
     const [d, id] = b.dataset.rmline.split('|');
@@ -453,14 +547,18 @@ function renderRutina(root) {
     if (v != null) { r.days[d].label = v.trim() || r.days[d].label; save(); renderRutina(root); }
   });
   $('#btnResetRoutine', root).onclick = async () => {
-    if (!confirm('¿Restablecer la rutina al split Olimpo por defecto? (no afecta tu historial)')) return;
-    state.routine = await fetchSeed('data/routine.seed.json');
+    if (!confirm('¿Restablecer ESTA rutina al split Olimpo por defecto? (no afecta tu historial)')) return;
+    const seed = await fetchSeed('data/routine.seed.json');
+    seed.id = r.id; // conservar el lugar/id en la lista
+    const idx = state.routines.findIndex((x) => x.id === r.id);
+    state.routines[idx] = seed;
+    state.active = null;
     save(); renderRutina(root); toast('Rutina restablecida');
   };
 }
 
 function routineDayCard(d) {
-  const day = state.routine.days[d];
+  const day = activeRoutine().days[d];
   const lines = day.exercises.map((item) => {
     const ex = byId(item.exerciseId);
     return `<div class="rline">
@@ -480,7 +578,7 @@ function routineDayCard(d) {
 }
 
 function editLineSetsReps(d, id, root) {
-  const item = state.routine.days[d].exercises.find((i) => i.exerciseId === id);
+  const item = activeRoutine().days[d].exercises.find((i) => i.exerciseId === id);
   const ex = byId(id);
   openModal(`
     <h3 class="modal__title">${esc(ex ? ex.name : id)}</h3>
@@ -506,10 +604,10 @@ function openExercisePicker(d, root) {
         ${exImg(e, '')}<span class="picker-item__name">${esc(e.name)}</span>
         <span class="tag">${e.defaultSets}×${e.defaultReps}</span></div>`).join('');
   }).join('');
-  openModal(`<h3 class="modal__title">Agregar ejercicio · ${esc(state.routine.days[d].label)}</h3>${groups}`);
+  openModal(`<h3 class="modal__title">Agregar ejercicio · ${esc(activeRoutine().days[d].label)}</h3>${groups}`);
   document.querySelectorAll('[data-pick]').forEach((it) => it.onclick = () => {
     const e = byId(it.dataset.pick);
-    const day = state.routine.days[d];
+    const day = activeRoutine().days[d];
     if (day.exercises.some((i) => i.exerciseId === e.id)) { toast('Ya está en este día'); return; }
     day.exercises.push({ exerciseId: e.id, sets: e.defaultSets, reps: e.defaultReps });
     save(); closeModal(); renderRutina(root); toast('Agregado ✔');
@@ -547,8 +645,8 @@ function renderCatalogo(root) {
     const ex = byId(b.dataset.del);
     if (!confirm(`¿Eliminar "${ex.name}" del catálogo?`)) return;
     state.catalog = state.catalog.filter((x) => x.id !== ex.id);
-    // limpiarlo de la rutina
-    for (const d of DAYS) state.routine.days[d].exercises = state.routine.days[d].exercises.filter((i) => i.exerciseId !== ex.id);
+    // limpiarlo de todas las rutinas
+    for (const rr of state.routines) for (const d of DAYS) rr.days[d].exercises = rr.days[d].exercises.filter((i) => i.exerciseId !== ex.id);
     save(); renderCatalogo(root);
   });
   $('#btnAddEx', root).onclick = () => openExerciseForm(null, root);
@@ -683,7 +781,7 @@ function renderPerfil(root) {
   };
   $('#pStyle', root).onchange = (e) => { p.imageStyle = e.target.value; save(); toast('Estilo: ' + (p.imageStyle === 'cartoon' ? 'Cartoon' : 'Fotos')); };
   $('#btnExport', root).onclick = () => {
-    const data = { profile: state.profile, catalog: state.catalog, routine: state.routine, sessions: state.sessions };
+    const data = { profile: state.profile, catalog: state.catalog, routines: state.routines, activeRoutineId: state.activeRoutineId, sessions: state.sessions };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'olimpo-backup.json'; a.click();

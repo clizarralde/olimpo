@@ -173,6 +173,7 @@ body {
 .btn--ghost { background: transparent; }
 .btn--danger { color: var(--danger); border-color: var(--danger-soft); background: var(--danger-soft); }
 .btn--sm { width: auto; padding: 8px 12px; font-size: 13px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn-row { display: flex; gap: 10px; margin-top: 16px; }
 
 .fab-finish { position: sticky; bottom: 12px; margin-top: 18px; z-index: 5; }

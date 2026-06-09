@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "exercises": [
     {
       "id": "press-banca",
@@ -627,6 +627,51 @@
       "defaultReps": 15,
       "secondsPerRep": 3,
       "image": "https://cdn.jsdelivr.net/gh/yuhonas/free-exercise-db@main/exercises/Standing_Calf_Raises/0.jpg"
+    },
+    {
+      "id": "entrada-calor",
+      "name": "Entrada en calor (cinta o bici)",
+      "muscleGroup": "cardio",
+      "subGroup": null,
+      "met": 6.0,
+      "defaultSets": 1,
+      "defaultReps": 1,
+      "secondsPerRep": 0,
+      "durationMin": 10,
+      "image": null
+    },
+    {
+      "id": "abs-banco",
+      "name": "Abdominales en banco",
+      "muscleGroup": "abdominales",
+      "subGroup": null,
+      "met": 4.0,
+      "defaultSets": 3,
+      "defaultReps": 20,
+      "secondsPerRep": 2,
+      "image": null
+    },
+    {
+      "id": "abs-inclinado",
+      "name": "Abdominales inclinado",
+      "muscleGroup": "abdominales",
+      "subGroup": null,
+      "met": 4.0,
+      "defaultSets": 3,
+      "defaultReps": 15,
+      "secondsPerRep": 2,
+      "image": null
+    },
+    {
+      "id": "abs-rodillas",
+      "name": "Elevación de rodillas al pecho",
+      "muscleGroup": "abdominales",
+      "subGroup": null,
+      "met": 4.0,
+      "defaultSets": 3,
+      "defaultReps": 15,
+      "secondsPerRep": 2,
+      "image": null
     }
   ]
 }
