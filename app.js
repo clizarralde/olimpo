@@ -735,6 +735,7 @@ function renderHistorial(root) {
         <div class="hist__meta">${DAY_SHORT[s.dayKey]} · ${s.durationMin} min · ${pct}% completado</div>
       </div>
       <div style="text-align:right"><div class="hist__cal">${s.caloriesBurned}</div><div class="hist__mon">kcal</div></div>
+      ${isIOS() ? `<button class="icon-btn" data-health="${esc(s.date)}" title="Agregar a Apple Salud">🍎</button>` : ''}
       <button class="icon-btn" data-delsession="${esc(s.date)}">🗑️</button>
     </div>`;
   }).join('');
@@ -751,6 +752,10 @@ function renderHistorial(root) {
     if (!confirm('¿Eliminar esta sesión del historial?')) return;
     state.sessions = state.sessions.filter((s) => s.date !== b.dataset.delsession);
     save(); renderHistorial(root);
+  });
+  root.querySelectorAll('[data-health]').forEach((b) => b.onclick = () => {
+    const s = state.sessions.find((x) => x.date === b.dataset.health);
+    if (s) window.location.href = appleHealthURL(s);
   });
 }
 
